@@ -30,7 +30,7 @@ var _ = Describe("Cat", func() {
 		os.Stdout = writeFile
 	})
 
-	It("Does something", func() {
+	It("Outputs the contents of the file", func() {
 		path := "test.txt"
 		file, err := os.Open(path)
 		if err != nil {
