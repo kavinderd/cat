@@ -30,48 +30,51 @@ var _ = Describe("Cat", func() {
 		os.Stdout = writeFile
 	})
 
-	It("Outputs the contents of the file", func() {
-		path := "test.txt"
-		file, err := os.Open(path)
-		if err != nil {
-			Fail("Couldn't Open File")
-		}
-
-		fileStat, err := file.Stat()
-		if err != nil {
-			Fail("Couldn't Stat File")
-		}
-
-		inBsize := int(fileStat.Sys().(*syscall.Stat_t).Blksize)
-		size := 20 + inBsize*4
-		outBuf := bufio.NewWriterSize(os.Stdout, size)
-		inBuf := make([]byte, inBsize+1)
-
-		_ = Cat(file, inBuf, outBuf)
-		file.Close()
-
-		outC := make(chan string)
-		go func() {
-			var b bytes.Buffer
-			_, err := io.Copy(&b, readFile)
-			readFile.Close()
+	var _ = Describe("One argument without any flags", func() {
+		It("Outputs the contents of the file", func() {
+			path := "test.txt"
+			file, err := os.Open(path)
 			if err != nil {
-				Fail("Error in Channel")
+				Fail("Couldn't Open File")
 			}
-			outC <- b.String()
-		}()
 
-		cat := exec.Command("cat", path)
-		b, err := cat.Output()
-		if err != nil {
-			Fail("Error line 70")
-		}
-		buf.Write(b)
+			fileStat, err := file.Stat()
+			if err != nil {
+				Fail("Couldn't Stat File")
+			}
 
-		writeFile.Close()
-		os.Stdout = stdout
-		out := <-outC
+			inBsize := int(fileStat.Sys().(*syscall.Stat_t).Blksize)
+			size := 20 + inBsize*4
+			outBuf := bufio.NewWriterSize(os.Stdout, size)
+			inBuf := make([]byte, inBsize+1)
 
-		Expect(out).To(Equal(buf.String()))
+			_ = Cat(file, inBuf, outBuf)
+			file.Close()
+
+			outC := make(chan string)
+			go func() {
+				var b bytes.Buffer
+				_, err := io.Copy(&b, readFile)
+				readFile.Close()
+				if err != nil {
+					Fail("Error in Channel")
+				}
+				outC <- b.String()
+			}()
+
+			cat := exec.Command("cat", path)
+			b, err := cat.Output()
+			if err != nil {
+				Fail("Error line 70")
+			}
+			buf.Write(b)
+
+			writeFile.Close()
+			os.Stdout = stdout
+			out := <-outC
+
+			Expect(out).To(Equal(buf.String()))
+		})
 	})
+
 })
