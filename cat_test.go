@@ -19,6 +19,8 @@ var _ = Describe("Cat", func() {
 	var writeFile *os.File
 	var err error
 	var buf bytes.Buffer
+	var routine func(reader io.ReadCloser, channel chan string)
+	path := "test.txt"
 
 	BeforeEach(func() {
 		stdout = os.Stdout
@@ -27,51 +29,109 @@ var _ = Describe("Cat", func() {
 			//This isn't correct
 			Fail("Couldn't Create Pipe")
 		}
-		os.Stdout = writeFile
-	})
 
-	It("Outputs the contents of the file", func() {
-		path := "test.txt"
-		file, err := os.Open(path)
-		if err != nil {
-			Fail("Couldn't Open File")
-		}
-
-		fileStat, err := file.Stat()
-		if err != nil {
-			Fail("Couldn't Stat File")
-		}
-
-		inBsize := int(fileStat.Sys().(*syscall.Stat_t).Blksize)
-		size := 20 + inBsize*4
-		outBuf := bufio.NewWriterSize(os.Stdout, size)
-		inBuf := make([]byte, inBsize+1)
-
-		_ = Cat(file, inBuf, outBuf)
-		file.Close()
-
-		outC := make(chan string)
-		go func() {
+		routine = func(reader io.ReadCloser, channel chan string) {
 			var b bytes.Buffer
-			_, err := io.Copy(&b, readFile)
-			readFile.Close()
+			_, err := io.Copy(&b, reader)
+			reader.Close()
 			if err != nil {
 				Fail("Error in Channel")
 			}
-			outC <- b.String()
-		}()
-
-		cat := exec.Command("cat", path)
-		b, err := cat.Output()
-		if err != nil {
-			Fail("Error line 70")
+			channel <- b.String()
 		}
-		buf.Write(b)
+		os.Stdout = writeFile
+	})
 
+	AfterEach(func() {
+		buf.Reset()
+	})
+
+	cleanup := func() {
 		writeFile.Close()
 		os.Stdout = stdout
-		out := <-outC
+	}
 
-		Expect(out).To(Equal(buf.String()))
+	NewTempWriter := func(fileBlockSize int) *bufio.Writer {
+		size := 20 + fileBlockSize*4
+		return bufio.NewWriterSize(os.Stdout, size)
+	}
+
+	var _ = Describe("One argument without any flags", func() {
+		It("Outputs the contents of the file", func() {
+			file, err := os.Open(path)
+			if err != nil {
+				Fail("Couldn't Open File")
+			}
+
+			fileStat, err := file.Stat()
+			if err != nil {
+				Fail("Couldn't Stat File")
+			}
+
+			outBuf := NewTempWriter(int(fileStat.Sys().(*syscall.Stat_t).Blksize))
+
+			_ = SimpleCat(file, outBuf)
+			file.Close()
+
+			outC := make(chan string)
+			go routine(readFile, outC)
+
+			args := []string{path}
+			b, err := SystemCat(args)
+			if err != nil {
+				Fail("Error line 70")
+			}
+
+			buf.Write(b)
+			cleanup()
+
+			out := <-outC
+
+			Expect(out).To(Equal(buf.String()))
+		})
 	})
+
+	var _ = Describe("One argument & -b", func() {
+		It("Outputs the contents of the file with line numbers", func() {
+			file, err := os.Open(path)
+			if err != nil {
+				Fail("Couldn't Open File")
+			}
+
+			fileStat, err := file.Stat()
+			if err != nil {
+				Fail("Couldn't Stat File")
+			}
+
+			outBuf := NewTempWriter(int(fileStat.Sys().(*syscall.Stat_t).Blksize))
+
+			flags := 1
+			_ = Cat(file, outBuf, flags)
+			outBuf.Flush()
+
+			file.Close()
+
+			outC := make(chan string)
+			go routine(readFile, outC)
+
+			args := []string{"-b", path}
+			b, err := SystemCat(args)
+			if err != nil {
+				Fail("Error line 70")
+			}
+			buf.Write(b)
+
+			cleanup()
+
+			out := <-outC
+
+			Expect(out).To(Equal(buf.String()))
+		})
+	})
+
 })
+
+func SystemCat(args []string) ([]byte, error) {
+	cat := exec.Command("cat", args...)
+	return cat.Output()
+}
