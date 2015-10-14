@@ -68,9 +68,12 @@ var _ = Describe("Cat", func() {
 				Fail("Couldn't Stat File")
 			}
 
+			size := int(fileStat.Sys().(*syscall.Stat_t).Blksize)
 			outBuf := NewTempWriter(int(fileStat.Sys().(*syscall.Stat_t).Blksize))
+			inBuf := make([]byte, size)
 
-			_ = SimpleCat(file, outBuf)
+			//			_ = SimpleCat(file, outBuf)
+			Cat(file, inBuf, outBuf)
 			file.Close()
 
 			outC := make(chan string)
@@ -90,45 +93,6 @@ var _ = Describe("Cat", func() {
 			Expect(out).To(Equal(buf.String()))
 		})
 	})
-
-	var _ = Describe("One argument & -b", func() {
-		It("Outputs the contents of the file with line numbers", func() {
-			file, err := os.Open(path)
-			if err != nil {
-				Fail("Couldn't Open File")
-			}
-
-			fileStat, err := file.Stat()
-			if err != nil {
-				Fail("Couldn't Stat File")
-			}
-
-			outBuf := NewTempWriter(int(fileStat.Sys().(*syscall.Stat_t).Blksize))
-
-			flags := 1
-			_ = Cat(file, outBuf, flags)
-			outBuf.Flush()
-
-			file.Close()
-
-			outC := make(chan string)
-			go routine(readFile, outC)
-
-			args := []string{"-b", path}
-			b, err := SystemCat(args)
-			if err != nil {
-				Fail("Error line 70")
-			}
-			buf.Write(b)
-
-			cleanup()
-
-			out := <-outC
-
-			Expect(out).To(Equal(buf.String()))
-		})
-	})
-
 })
 
 func SystemCat(args []string) ([]byte, error) {

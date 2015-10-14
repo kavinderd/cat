@@ -2,49 +2,67 @@ package main
 
 import (
 	"bufio"
-	"fmt"
 	"io"
-	"log"
-	"os"
 )
 
-const (
-	numberNonBlankLinesFlag = 1
-)
+const ()
 
 var (
-	fatal = log.New(os.Stderr, "", 0)
+	HorizTab = []byte("^I")
 )
 
-func SimpleCat(reader io.Reader, writer *bufio.Writer) int {
-	_, err := io.Copy(writer, reader)
-	if err != nil {
-		fatal.Fatalln(err)
-	}
-	writer.Flush()
-	return 0
-}
+func Cat(reader io.Reader, buf []byte, writer *bufio.Writer) int {
+	newlines := 0
+	endOfBuffer := 0                     // end of buffer
+	beginningOfBuffer := endOfBuffer + 1 //beginning of buffer
+	ch := byte(0)                        // char in buffer
+	size := len(buf) - 1                 // len of buffer with room for sentinel byte
 
-func Cat(reader io.Reader, writer *bufio.Writer, flags int) int {
-	var line string
-	var err error
-	bufferedReader := bufio.NewReader(reader)
-	nr := 0
-	countNonBlank := flags & numberNonBlankLinesFlag
 	for {
-		line, err = bufferedReader.ReadString('\n')
-		if err != nil {
-			return 1
+
+		//For Loop for handling newline char
+		for {
+			if beginningOfBuffer > endOfBuffer {
+				n, err := reader.Read(buf[:size])
+				if err == io.EOF {
+					//				totalNewLine = newlines
+					writer.Flush()
+					return 0
+				}
+				if err != nil {
+					//				totalNewLine = newlines
+					writer.Flush()
+					return 1
+				}
+
+				beginningOfBuffer = 0 //Reset bpin to the beginning of the buffer
+				endOfBuffer = n       //End of buffer is the number of bytes read
+				buf[endOfBuffer] = 10 //Place a sentinel at the end of the buffer
+			} else {
+				newlines++
+				//TODO: Logic for flags
+			}
+
+			ch = buf[beginningOfBuffer]
+			beginningOfBuffer++
+			if ch != 10 {
+				break
+			}
 		}
-		if countNonBlank == 1 && line == "\n" || line == "" {
-			fmt.Fprint(writer, line)
-		} else if countNonBlank == 1 {
-			nr++
-			fmt.Fprintf(writer, "%6d\t%s", nr, line)
-		} else {
+
+		for {
+			if ch != 10 {
+				writer.WriteByte(ch)
+			} else {
+				writer.WriteByte(10)
+				newlines = -1
+				break
+			}
+
+			ch = buf[beginningOfBuffer]
+			beginningOfBuffer++
 		}
 	}
-	return 0
 }
 
 func main() {
