@@ -5,13 +5,15 @@ import (
 	"io"
 )
 
-const ()
+const (
+	ShowTabs = 1
+)
 
 var (
 	HorizTab = []byte("^I")
 )
 
-func Cat(reader io.Reader, buf []byte, writer *bufio.Writer) int {
+func Cat(reader io.Reader, buf []byte, writer *bufio.Writer, flags int) int {
 	newlines := 0
 	endOfBuffer := 0                     // end of buffer
 	beginningOfBuffer := endOfBuffer + 1 //beginning of buffer
@@ -51,7 +53,9 @@ func Cat(reader io.Reader, buf []byte, writer *bufio.Writer) int {
 		}
 
 		for {
-			if ch != 10 {
+			if ch == 9 && (flags&ShowTabs) == 1 {
+				writer.Write(HorizTab)
+			} else if ch != 10 {
 				writer.WriteByte(ch)
 			} else {
 				writer.WriteByte(10)
