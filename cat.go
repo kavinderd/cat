@@ -6,12 +6,49 @@ import (
 )
 
 const (
-	ShowTabs = 1
+	ShowTabs           = 1
+	ShowAllLineNumbers = 2
 )
 
 var (
 	HorizTab = []byte("^I")
+
+	LineLen = 20
+	LineBuf = []byte{
+		' ', ' ', ' ', ' ', ' ',
+		' ', ' ', ' ', ' ', ' ',
+		' ', ' ', ' ', ' ', ' ',
+		' ', ' ', ' ', '0', '\t',
+	}
+	LinePrint = LineLen - 7
+	LineStart = LineLen - 2
+	LineEnd   = LineLen - 2
 )
+
+func nextLineNum() {
+	ep := LineEnd
+
+	for {
+		if LineBuf[ep] < '9' {
+			LineBuf[ep]++
+			return
+		}
+
+		LineBuf[ep] = '0'
+		ep--
+
+		if ep < LineStart {
+			break
+		}
+	}
+
+	LineStart--
+	LineBuf[LineStart] = '1'
+
+	if LineStart < LinePrint {
+		LinePrint--
+	}
+}
 
 func Cat(reader io.Reader, buf []byte, writer *bufio.Writer, flags int) int {
 	newlines := 0
@@ -27,12 +64,10 @@ func Cat(reader io.Reader, buf []byte, writer *bufio.Writer, flags int) int {
 			if beginningOfBuffer > endOfBuffer {
 				n, err := reader.Read(buf[:size])
 				if err == io.EOF {
-					//				totalNewLine = newlines
 					writer.Flush()
 					return 0
 				}
 				if err != nil {
-					//				totalNewLine = newlines
 					writer.Flush()
 					return 1
 				}
@@ -42,7 +77,13 @@ func Cat(reader io.Reader, buf []byte, writer *bufio.Writer, flags int) int {
 				buf[endOfBuffer] = 10 //Place a sentinel at the end of the buffer
 			} else {
 				newlines++
-				//TODO: Logic for flags
+				if newlines > 0 {
+					if (flags & ShowAllLineNumbers) == 2 {
+						nextLineNum()
+						writer.Write(LineBuf[LinePrint:])
+					}
+				}
+				writer.WriteByte(10)
 			}
 
 			ch = buf[beginningOfBuffer]
@@ -52,13 +93,17 @@ func Cat(reader io.Reader, buf []byte, writer *bufio.Writer, flags int) int {
 			}
 		}
 
+		if newlines >= 0 && (flags&ShowAllLineNumbers) == 2 {
+			nextLineNum()
+			writer.Write(LineBuf[LinePrint:])
+		}
+
 		for {
 			if ch == 9 && (flags&ShowTabs) == 1 {
 				writer.Write(HorizTab)
 			} else if ch != 10 {
 				writer.WriteByte(ch)
 			} else {
-				writer.WriteByte(10)
 				newlines = -1
 				break
 			}
