@@ -3,6 +3,8 @@ package main
 import (
 	"bufio"
 	"io"
+	"os"
+	"syscall"
 )
 
 const (
@@ -20,9 +22,13 @@ var (
 		' ', ' ', ' ', ' ', ' ',
 		' ', ' ', ' ', '0', '\t',
 	}
-	LinePrint = LineLen - 7
-	LineStart = LineLen - 2
-	LineEnd   = LineLen - 2
+	LinePrint     = LineLen - 7
+	LineStart     = LineLen - 2
+	LineEnd       = LineLen - 2
+	NewTempWriter = func(fileBlockSize int) *bufio.Writer {
+		size := 20 + fileBlockSize*4
+		return bufio.NewWriterSize(os.Stdout, size)
+	}
 )
 
 func nextLineNum() {
@@ -97,7 +103,6 @@ func Cat(reader io.Reader, buf []byte, writer *bufio.Writer, flags int) int {
 			nextLineNum()
 			writer.Write(LineBuf[LinePrint:])
 		}
-
 		for {
 			if ch == 9 && (flags&ShowTabs) == 1 {
 				writer.Write(HorizTab)
@@ -115,4 +120,26 @@ func Cat(reader io.Reader, buf []byte, writer *bufio.Writer, flags int) int {
 }
 
 func main() {
+	//For args call cat command
+	args := os.Args[1:]
+	for _, arg := range args {
+		file, err := os.Open(arg)
+		if err != nil {
+			return
+		}
+
+		fileStat, err := file.Stat()
+		if err != nil {
+			return
+		}
+		size := int(fileStat.Sys().(*syscall.Stat_t).Blksize)
+		outBuf := NewTempWriter(int(fileStat.Sys().(*syscall.Stat_t).Blksize))
+		inBuf := make([]byte, size)
+
+		Cat(file, inBuf, outBuf, 0)
+		file.Close()
+
+		outBuf.Flush()
+	}
+	return
 }
