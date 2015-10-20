@@ -1,5 +1,7 @@
 package main
 
+//TODO: More complete usage information and help
+
 import (
 	"bufio"
 	"flag"
