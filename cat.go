@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"io"
 	"os"
 	"syscall"
@@ -120,8 +121,18 @@ func Cat(reader io.Reader, buf []byte, writer *bufio.Writer, flags int) int {
 }
 
 func main() {
-	//For args call cat command
-	args := os.Args[1:]
+	var lineNumFlag = flag.Bool("n", false, "output line numbers")
+	var tabFlag = flag.Bool("t", false, "display tabs")
+	flag.Parse()
+
+	args := flag.Args()
+	flags := 0
+	if *lineNumFlag {
+		flags += 2
+	}
+	if *tabFlag {
+		flags += 1
+	}
 	for _, arg := range args {
 		file, err := os.Open(arg)
 		if err != nil {
@@ -136,7 +147,7 @@ func main() {
 		outBuf := NewTempWriter(int(fileStat.Sys().(*syscall.Stat_t).Blksize))
 		inBuf := make([]byte, size)
 
-		Cat(file, inBuf, outBuf, 0)
+		Cat(file, inBuf, outBuf, flags)
 		file.Close()
 
 		outBuf.Flush()
