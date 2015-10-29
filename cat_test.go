@@ -51,7 +51,7 @@ var _ = Describe("Cat", func() {
 		os.Stdout = stdout
 	}
 
-	NewTempWriter := func(fileBlockSize int) *bufio.Writer {
+	newTempWriter := func(fileBlockSize int) *bufio.Writer {
 		size := 20 + fileBlockSize*4
 		return bufio.NewWriterSize(os.Stdout, size)
 	}
@@ -69,7 +69,7 @@ var _ = Describe("Cat", func() {
 			}
 
 			size := int(fileStat.Sys().(*syscall.Stat_t).Blksize)
-			outBuf := NewTempWriter(int(fileStat.Sys().(*syscall.Stat_t).Blksize))
+			outBuf := newTempWriter(int(fileStat.Sys().(*syscall.Stat_t).Blksize))
 			inBuf := make([]byte, size)
 
 			Cat(file, inBuf, outBuf, 0)
@@ -107,7 +107,7 @@ var _ = Describe("Cat", func() {
 			}
 
 			size := int(fileStat.Sys().(*syscall.Stat_t).Blksize)
-			outBuf := NewTempWriter(int(fileStat.Sys().(*syscall.Stat_t).Blksize))
+			outBuf := newTempWriter(int(fileStat.Sys().(*syscall.Stat_t).Blksize))
 			inBuf := make([]byte, size)
 
 			Cat(file, inBuf, outBuf, 1)
@@ -145,7 +145,7 @@ var _ = Describe("Cat", func() {
 			}
 
 			size := int(fileStat.Sys().(*syscall.Stat_t).Blksize)
-			outBuf := NewTempWriter(int(fileStat.Sys().(*syscall.Stat_t).Blksize))
+			outBuf := newTempWriter(int(fileStat.Sys().(*syscall.Stat_t).Blksize))
 			inBuf := make([]byte, size)
 
 			Cat(file, inBuf, outBuf, 2)
